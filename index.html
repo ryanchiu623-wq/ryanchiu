@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Morse Encryptor Pro</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+html{
+scroll-behavior:smooth;
+
+/* 固定的 nav 高約 74px，錨點跳轉時預留空間 */
+scroll-padding-top:90px;
+
+/* 這裡刻意不設 overflow-x。
+   overflow-x:hidden 會讓同一個元素的 overflow-y 變成 auto，
+   多出一層捲動容器，是行動版捲動異常的常見原因。
+   改成從根源避免橫向溢出（見 .result 的 overflow-wrap）。 */
+}
+
+body{
+
+background:black;
+font-family:Arial,sans-serif;
+color:white;
+
+}
+
+canvas{
+
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+z-index:-1;
+
+}
+
+nav{
+
+position:fixed;
+top:0;
+width:100%;
+padding:20px 60px;
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+
+background:rgba(0,0,0,.5);
+
+backdrop-filter:blur(15px);
+
+z-index:999;
+
+}
+
+.logo{
+
+font-size:30px;
+font-weight:bold;
+color:#00ff66;
+
+}
+
+.menu a{
+
+margin-left:25px;
+text-decoration:none;
+color:white;
+
+}
+
+.hero{
+
+/* 手機瀏覽器的網址列會讓 100vh 大於實際可視高度，
+   改用 svh 並用 min-height，內容變高也不會被切掉 */
+min-height:100vh;
+min-height:100svh;
+
+display:flex;
+align-items:center;
+justify-content:center;
+
+/* 上方留出固定 nav 的高度（約 74px）再加緩衝，
+   否則標題第一行會壓在 nav 底下，
+   而畫面已經在 scrollY=0，再怎麼滑也露不出來。 */
+padding:114px 30px 60px;
+
+}
+
+.hero-content{
+
+max-width:1200px;
+
+display:flex;
+align-items:center;
+justify-content:space-between;
+
+gap:50px;
+
+}
+
+.left{
+
+flex:1;
+
+}
+
+.left h1{
+
+font-size:65px;
+line-height:1.1;
+margin-bottom:20px;
+
+}
+
+.green{
+
+color:#00ff66;
+
+}
+
+.left p{
+
+font-size:20px;
+line-height:1.8;
+color:#ddd;
+
+}
+
+.buttons{
+
+margin-top:40px;
+
+}
+
+.btn{
+
+padding:18px 35px;
+border:none;
+border-radius:10px;
+cursor:pointer;
+
+font-size:18px;
+font-weight:bold;
+margin-right:15px;
+
+}
+
+.start{
+
+background:#00ff66;
+color:black;
+
+}
+
+.more{
+
+background:transparent;
+border:1px solid #00ff66;
+color:#00ff66;
+
+}
+
+.lock{
+
+font-size:clamp(120px,28vw,250px);
+color:#00ff66;
+
+animation:float 3s infinite ease-in-out;
+
+}
+
+@keyframes float{
+
+0%{
+
+transform:
+translateY(0px);
+
+}
+
+50%{
+
+transform:
+translateY(-25px);
+
+}
+
+100%{
+
+transform:
+translateY(0px);
+
+}
+
+}
+
+.tool{
+
+padding:100px 30px;
+
+}
+
+.tool-container{
+
+max-width:1200px;
+margin:auto;
+
+padding:30px;
+
+border-radius:25px;
+
+background:rgba(20,20,20,.8);
+
+backdrop-filter:blur(20px);
+
+border:1px solid rgba(0,255,100,.2);
+
+}
+
+.tool-grid{
+
+display:grid;
+
+grid-template-columns:1fr 1fr;
+
+gap:30px;
+
+}
+
+.box{
+
+padding:20px;
+
+border-radius:20px;
+
+background:#111;
+
+}
+
+input,textarea{
+
+width:100%;
+
+padding:15px;
+
+margin-top:15px;
+
+background:black;
+
+border:1px solid #00ff66;
+
+color:white;
+
+border-radius:10px;
+
+}
+
+.result{
+
+margin-top:20px;
+
+padding:20px;
+
+background:black;
+
+border-radius:10px;
+
+/* 二進位很長，一定要能斷行，否則會把版面撐寬 */
+overflow-wrap:anywhere;
+
+line-height:1.6;
+
+}
+
+button.action{
+
+margin-top:20px;
+
+padding:15px;
+
+background:#00ff66;
+
+border:none;
+
+border-radius:10px;
+
+font-weight:bold;
+
+cursor:pointer;
+
+width:100%;
+
+}
+
+.actions{
+
+display:grid;
+
+grid-template-columns:1fr 1fr;
+
+gap:12px;
+
+}
+
+button.action.ghost{
+
+background:transparent;
+
+border:1px solid #00ff66;
+
+color:#00ff66;
+
+}
+
+button.action:disabled{
+
+opacity:.4;
+
+cursor:not-allowed;
+
+}
+
+button.action:focus-visible,
+input:focus-visible,
+.menu a:focus-visible,
+.btn:focus-visible{
+
+outline:2px solid #00ff66;
+
+outline-offset:3px;
+
+}
+
+body.noblur nav,
+body.noblur .tool-container{
+
+backdrop-filter:none;
+
+}
+
+#debug{
+
+position:fixed;
+
+left:10px;
+
+bottom:10px;
+
+z-index:99999;
+
+padding:10px 12px;
+
+background:rgba(0,0,0,.85);
+
+border:1px solid #00ff66;
+
+border-radius:10px;
+
+font:12px/1.5 monospace;
+
+color:#00ff66;
+
+}
+
+#debug button{
+
+display:block;
+
+width:100%;
+
+margin-top:6px;
+
+padding:6px 8px;
+
+font:12px monospace;
+
+background:transparent;
+
+border:1px solid #00ff66;
+
+color:#00ff66;
+
+border-radius:6px;
+
+}
+
+#debug button.off{
+
+opacity:.4;
+
+}
+
+.hint{
+
+margin-top:12px;
+
+font-size:14px;
+
+color:#888;
+
+min-height:20px;
+
+}
+
+@media(prefers-reduced-motion:reduce){
+
+.lock{
+
+animation:none;
+
+}
+
+}
+
+@media(max-width:900px){
+
+.hero-content{
+
+flex-direction:column;
+
+}
+
+.left h1{
+
+font-size:45px;
+
+}
+
+.tool-grid{
+
+grid-template-columns:1fr;
+
+}
+
+}
+
+</style>
+
+
+</head>
+
+<body>
+
+<canvas id="matrix"></canvas>
+
+<nav>
+
+<div class="logo">
+
+MORSE
+
+</div>
+
+<div class="menu">
+
+<a href="#tool">
+
+加密工具
+
+</a>
+
+</div>
+
+</nav>
+
+
+<section class="hero">
+
+<div class="hero-content">
+
+<div class="left">
+
+<h1>
+
+最強<span class="green">
+
+摩斯加密工具
+
+</span>
+
+保護你的每段訊息
+
+</h1>
+
+<p>
+
+將英文字轉換成二進位加密格式
+
+即時加密與解密
+
+支援TXT/PDF匯出
+
+</p>
+
+<div class="buttons">
+
+<a href="#tool">
+
+<button class="btn start">
+
+立即開始
+
+</button>
+
+</a>
+
+<button class="btn more">
+
+了解更多
+
+</button>
+
+</div>
+
+</div>
+
+<div class="lock">
+
+🔒
+
+</div>
+
+</div>
+
+</section>
+
+
+<section
+id="tool"
+class="tool">
+
+<div class="tool-container">
+
+<h1 align="center">
+
+加密 / 解密工具
+
+</h1>
+
+<br>
+
+<div class="tool-grid">
+
+<div class="box">
+
+<h2>
+
+ENCRYPT
+
+</h2>
+
+<input
+id="inputText"
+autocapitalize="off"
+autocorrect="off"
+autocomplete="off"
+spellcheck="false"
+placeholder="輸入英文（區分大小寫，可含空格）">
+
+
+
+<div class="result">
+
+二進位:
+
+<div id="binary">
+
+</div>
+
+</div>
+
+<button
+class="action"
+onclick="copyBinary()">
+
+
+
+複製二進位
+
+</button>
+
+<div class="actions">
+
+<button
+class="action ghost"
+onclick="exportTxt()">
+
+下載 TXT
+
+</button>
+
+<button
+class="action ghost"
+onclick="exportPdf()">
+
+下載 PDF
+
+</button>
+
+</div>
+
+<div
+class="hint"
+id="hint">
+
+</div>
+
+</div>
+
+<div class="box">
+
+<h2>
+
+DECRYPT
+
+</h2>
+
+<input
+id="decryptInput"
+inputmode="numeric"
+autocapitalize="off"
+autocorrect="off"
+autocomplete="off"
+spellcheck="false"
+placeholder="輸入二進位">
+
+
+
+<div class="result">
+
+<div id="decryptResult">
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<script>
+
+const morse={
+
+A:".-",
+B:"-...",
+C:"-.-.",
+D:"-..",
+E:".",
+F:"..-.",
+G:"--.",
+H:"....",
+I:"..",
+J:".---",
+K:"-.-",
+L:".-..",
+M:"--",
+N:"-.",
+O:"---",
+P:".--.",
+Q:"--.-",
+R:".-.",
+S:"...",
+T:"-",
+U:"..-",
+V:"...-",
+W:".--",
+X:"-..-",
+Y:"-.--",
+Z:"--.."
+
+};
+
+// 小寫字母在數字前面多加一個 9 當標記
+// 大寫 A = ".-" -> "13"
+// 小寫 a = ".-" -> "913"
+const LOWER_MARK="9";
+
+// 空白鍵的專屬編號。
+// 字母只會用到 1 和 3，小寫開頭固定是 9，
+// 所以 7 開頭的號碼不會跟任何字母撞號。
+// 之後要加標點符號，往這裡加 71、73… 就好。
+const EXTRA={
+
+" ":"7"
+
+};
+
+
+function toDigits(letter){
+
+return morse[letter]
+.replaceAll(".",1)
+.replaceAll("-",3);
+
+}
+
+
+const reverse={};
+
+for(let x in morse){
+
+const digits=toDigits(x);
+
+reverse[
+parseInt(digits)
+]=x;
+
+reverse[
+parseInt(LOWER_MARK+digits)
+]=x.toLowerCase();
+
+}
+
+for(let ch in EXTRA){
+
+reverse[
+parseInt(EXTRA[ch])
+]=ch;
+
+}
+
+inputText.oninput=()=>{
+
+let text=inputText.value;
+
+let out=[];
+
+for(let c of text){
+
+if(EXTRA[c]){
+
+out.push(
+
+parseInt(EXTRA[c])
+.toString(2)
+
+);
+
+continue;
+
+}
+
+const upper=c.toUpperCase();
+
+if(morse[upper]){
+
+let num=toDigits(upper);
+
+if(c!==upper){
+
+num=LOWER_MARK+num;
+
+}
+
+out.push(
+
+parseInt(num)
+.toString(2)
+
+);
+
+}
+
+}
+
+document.getElementById("binary").innerText=
+
+out.join(" ");
+
+}
+
+
+decryptInput.oninput=()=>{
+
+let arr=
+decryptInput.value
+.split(" ");
+
+let result=[];
+
+for(let b of arr){
+
+let dec=
+
+parseInt(
+b,
+2
+);
+
+if(reverse[dec])
+
+result.push(
+reverse[dec]
+);
+
+}
+
+decryptResult.innerText=
+
+result.join("");
+
+}
+
+
+// Safari 不會因為使用者觸控就取消「程式觸發的平滑捲動」，
+// 動畫會繼續跑完，把畫面拉回原本的目標位置。
+// 手指一碰螢幕就把捲動停在當下位置，中斷動畫。
+window.addEventListener("touchstart",()=>{
+
+const de=document.documentElement;
+
+const y=window.scrollY;
+
+const prev=de.style.scrollBehavior;
+
+de.style.scrollBehavior="auto";
+
+window.scrollTo(0,y);
+
+requestAnimationFrame(()=>{
+
+de.style.scrollBehavior=prev;
+
+});
+
+},{passive:true});
+
+
+// iOS Safari 只要輸入框還有焦點（鍵盤開著），
+// 就會不停把它捲回可視範圍，使用者往上滑就會被硬拉回來。
+// 手指一開始拖曳就主動取消焦點，把捲動權還給使用者。
+document.addEventListener("touchmove",()=>{
+
+const el=document.activeElement;
+
+if(
+el&&
+(el.tagName==="INPUT"||
+el.tagName==="TEXTAREA")
+){
+
+el.blur();
+
+}
+
+},{passive:true});
+
+
+// 錨點跳轉後把 #tool 從網址移除。
+// 否則手機切換 App 回來、頁面重新載入時，
+// 瀏覽器會自動再跳回 #tool，看起來就像「回不到最上面」。
+for(const link of document.querySelectorAll('a[href^="#"]')){
+
+link.addEventListener("click",e=>{
+
+const target=
+document.querySelector(
+link.getAttribute("href")
+);
+
+if(!target)return;
+
+e.preventDefault();
+
+target.scrollIntoView({
+behavior:"smooth",
+block:"start"
+});
+
+history.replaceState(
+null,
+"",
+location.pathname
+);
+
+});
+
+}
+
+
+function hint(msg){
+
+const el=
+document.getElementById("hint");
+
+el.innerText=msg;
+
+clearTimeout(hint.timer);
+
+hint.timer=
+setTimeout(()=>{
+el.innerText="";
+},3000);
+
+}
+
+
+function currentData(){
+
+return{
+
+text:
+document
+.getElementById("inputText")
+.value,
+
+binary:
+document
+.getElementById("binary")
+.innerText
+.trim()
+
+};
+
+}
+
+
+function stamp(){
+
+const d=new Date();
+
+const p=n=>String(n).padStart(2,"0");
+
+return d.getFullYear()
++p(d.getMonth()+1)
++p(d.getDate())
++"-"
++p(d.getHours())
++p(d.getMinutes())
++p(d.getSeconds());
+
+}
+
+
+function saveBlob(blob,filename){
+
+const url=
+URL.createObjectURL(blob);
+
+const a=
+document.createElement("a");
+
+a.href=url;
+a.download=filename;
+
+document.body.appendChild(a);
+a.click();
+a.remove();
+
+URL.revokeObjectURL(url);
+
+}
+
+
+async function copyBinary(){
+
+const{binary}=currentData();
+
+if(!binary){
+
+hint("先在左邊輸入英文，才有二進位可以複製。");
+
+return;
+
+}
+
+try{
+
+await navigator
+.clipboard
+.writeText(binary);
+
+hint("已複製二進位到剪貼簿。");
+
+}catch(e){
+
+hint("瀏覽器擋下剪貼簿權限，請手動選取複製。");
+
+}
+
+}
+
+
+function exportTxt(){
+
+const{text,binary}=currentData();
+
+if(!binary){
+
+hint("先在左邊輸入英文，才有內容可以匯出。");
+
+return;
+
+}
+
+const content=
+"Morse Encryptor Pro\n"
++"====================\n\n"
++"原文：\n"+text+"\n\n"
++"二進位：\n"+binary+"\n\n"
++"產生時間："
++new Date().toLocaleString("zh-TW")
++"\n";
+
+saveBlob(
+
+new Blob(
+["\ufeff"+content],
+{type:"text/plain;charset=utf-8"}
+),
+
+"morse-"+stamp()+".txt"
+
+);
+
+hint("已下載 TXT 檔。");
+
+}
+
+
+function exportPdf(){
+
+const{text,binary}=currentData();
+
+if(!binary){
+
+hint("先在左邊輸入英文，才有內容可以匯出。");
+
+return;
+
+}
+
+if(!window.jspdf){
+
+hint("jsPDF 尚未載入，請確認網路連線後重試。");
+
+return;
+
+}
+
+const{jsPDF}=window.jspdf;
+
+const doc=new jsPDF();
+
+const left=15;
+const width=180;
+const bottom=280;
+
+let y=20;
+
+const write=(str,size,gap)=>{
+
+doc.setFontSize(size);
+
+const lines=
+doc.splitTextToSize(str,width);
+
+for(const line of lines){
+
+if(y>bottom){
+
+doc.addPage();
+
+y=20;
+
+}
+
+doc.text(line,left,y);
+
+y+=gap;
+
+}
+
+};
+
+write("MORSE ENCRYPTOR PRO",18,12);
+
+write("PLAIN TEXT",12,7);
+write(text||"(empty)",11,6);
+
+y+=6;
+
+write("BINARY",12,7);
+write(binary,11,6);
+
+y+=6;
+
+write(
+"Generated "
++new Date().toISOString(),
+9,
+5
+);
+
+doc.save("morse-"+stamp()+".pdf");
+
+hint("已下載 PDF 檔。");
+
+}
+
+
+
+const canvas=
+
+document.getElementById(
+"matrix"
+);
+
+const ctx=
+canvas.getContext(
+"2d"
+);
+
+canvas.width=
+innerWidth;
+
+canvas.height=
+innerHeight;
+
+const letters=
+
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+const fontSize=16;
+
+const cols=
+Math.floor(canvas.width/fontSize);
+
+const drops=[];
+
+for(let x=0;x<cols;x++){
+
+drops[x]=1;
+
+}
+
+function draw(){
+
+ctx.fillStyle=
+"rgba(0,0,0,.05)";
+
+ctx.fillRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+ctx.fillStyle=
+"#00ff66";
+
+ctx.font=
+fontSize+"px monospace";
+
+for(let i=0;i<drops.length;i++){
+
+let text=
+
+letters[
+Math.floor(
+Math.random()
+*letters.length
+)
+];
+
+ctx.fillText(
+
+text,
+i*fontSize,
+drops[i]*fontSize
+
+);
+
+if(
+drops[i]*
+fontSize>
+canvas.height
+&&
+Math.random()>.98
+){
+
+drops[i]=0;
+
+}
+
+drops[i]++;
+
+}
+
+}
+
+let matrixTimer=
+setInterval(
+draw,
+35
+);
+
+
+
+// ---- 除錯面板：網址後面加 ?debug 就會出現 ----
+if(location.search.includes("debug")){
+
+const box=document.createElement("div");
+
+box.id="debug";
+
+box.innerHTML=
+'<div>scrollY: <b id="dbgY">0</b></div>'
++'<div>最高到過: <b id="dbgMin">0</b></div>';
+
+const mk=(label,fn)=>{
+
+const b=document.createElement("button");
+
+b.textContent="關閉 "+label;
+
+b.onclick=()=>{
+
+b.classList.toggle("off");
+
+const off=b.classList.contains("off");
+
+b.textContent=(off?"已關 ":"關閉 ")+label;
+
+fn(off);
+
+};
+
+box.appendChild(b);
+
+};
+
+mk("平滑捲動",off=>{
+
+document.documentElement.style.scrollBehavior=
+off?"auto":"";
+
+});
+
+mk("Matrix 動畫",off=>{
+
+if(off){
+
+clearInterval(matrixTimer);
+
+}else{
+
+matrixTimer=setInterval(draw,35);
+
+}
+
+});
+
+mk("毛玻璃",off=>{
+
+document.body.classList.toggle("noblur",off);
+
+});
+
+document.body.appendChild(box);
+
+let minY=window.scrollY;
+
+addEventListener("scroll",()=>{
+
+minY=Math.min(minY,window.scrollY);
+
+document.getElementById("dbgY").textContent=
+Math.round(window.scrollY);
+
+document.getElementById("dbgMin").textContent=
+Math.round(minY);
+
+},{passive:true});
+
+}
+
+</script>
+
+
+</body>
+</html>
